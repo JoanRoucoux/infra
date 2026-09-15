@@ -16,5 +16,5 @@ variable "vps_service_name" {
 variable "firewall_enabled" {
   description = "Rules are reviewed while this is false; a missing rule locks SSH out once true."
   type        = bool
-  default     = false
+  default     = true
 }
