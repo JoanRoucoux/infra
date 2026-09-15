@@ -41,6 +41,10 @@ Kuma's monitors live in its SQLite volume. To recreate them:
 | batch fund | Push | `KUMA_PUSH_FUND` | 73 h |
 | batch crypto | Push | `KUMA_PUSH_CRYPTO` | 4 h 30 |
 
+A container with a healthcheck restarts through `starting`, which Kuma records as Pending, and Kuma
+notifies neither DOWN to Pending nor Pending to UP: container monitors send their DOWN email but
+no UP email. The HTTP monitors report the recovery.
+
 A push monitor only takes a fixed interval: equities and ETFs run on weekdays and funds from
 Tuesday to Saturday, so all three tolerate a weekend gap of 72 hours.
 
