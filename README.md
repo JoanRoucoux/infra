@@ -25,7 +25,36 @@ SSH keys are read from `~/.ssh`.
 
 ## Monitoring
 
-Filled in by the monitoring setup.
+Uptime Kuma at `https://status.joanroucoux.fr` (2FA), Beszel at `https://metrics.joanroucoux.fr`,
+UptimeRobot outside the server. All three alert by email through Gmail SMTP with an app password,
+configured in each tool's UI and stored in its own volume, never in this repository.
+
+Kuma's monitors live in its SQLite volume. To recreate them:
+
+| Name | Type | Target | Interval |
+| --- | --- | --- | --- |
+| cairn api | HTTP(s), 200, certificate expiry | `https://cairn.joanroucoux.fr/api/actuator/health` | 60 s |
+| cairn web | HTTP(s), 200 | `https://cairn.joanroucoux.fr/` | 60 s |
+| container cairn-api-1, cairn-web-1, cairn-postgres-1, proxy-caddy-1 | Docker Container, host `tcp://socket-proxy:2375` | container name | 60 s |
+| batch equity | Push | URL in `/srv/cairn/.env` as `KUMA_PUSH_EQUITY` | 73 h |
+| batch etf | Push | `KUMA_PUSH_ETF` | 73 h |
+| batch fund | Push | `KUMA_PUSH_FUND` | 73 h |
+| batch crypto | Push | `KUMA_PUSH_CRYPTO` | 4 h 30 |
+
+A push monitor only takes a fixed interval: equities and ETFs run on weekdays and funds from
+Tuesday to Saturday, so all three tolerate a weekend gap of 72 hours.
+
+Beszel: system `vps` at `/beszel_socket/beszel.sock`, its public key in
+`ansible/group_vars/all.yml`. Alerts: CPU above 80 % for 10 minutes, memory above 90 %, disk
+above 80 %, system down. Its SMTP settings live in PocketBase (`/_/`): on port 465, TLS encryption
+must be `Always`, not `Auto (StartTLS)`.
+
+UptimeRobot: `https://cairn.joanroucoux.fr/api/actuator/health` and
+`https://status.joanroucoux.fr/`, every 5 minutes. The second one is what notices the whole
+server going down, Kuma included.
+
+First-run pages are public: create the Kuma and Beszel admin accounts right after the stack
+starts, before anyone else reaches them.
 
 ## Rebuilding the server from scratch
 
