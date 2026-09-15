@@ -1,0 +1,7 @@
+# Managed by Ansible (infra/ansible/roles/ssh).
+# sshd keeps the first value it reads: this file only overrides 50-cloud-init.conf, which turns
+# passwords back on, because it sorts before it.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+AllowUsers {{ admin_user }} {{ deploy_user }}

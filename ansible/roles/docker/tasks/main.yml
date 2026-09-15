@@ -1,0 +1,52 @@
+---
+# apt refuses two definitions of the same repository with different Signed-By keys, so the
+# hand-written one goes before the managed one is added.
+- name: Remove the hand-written Docker repository definition
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/keyrings/docker.gpg
+
+- name: Add the Docker repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: stable
+    architectures: amd64
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+
+- name: Install Docker Engine and the compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+# Applies to containers created afterwards only: running ones keep unrotated logs until recreated.
+- name: Rotate container logs and keep containers running across daemon restarts
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: "{{ docker_daemon | to_nice_json }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+- name: Start Docker at boot
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+
+# Containers created later in this play must get the log settings: the daemon reads daemon.json
+# only when it restarts, and handlers would otherwise wait for the end of the play.
+- name: Restart Docker now if its settings changed
+  ansible.builtin.meta: flush_handlers

@@ -1,0 +1,42 @@
+---
+- name: Create the monitoring directory
+  ansible.builtin.file:
+    path: /srv/monitoring
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the monitoring compose project
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../monitoring/compose.yaml"
+    dest: /srv/monitoring/compose.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Declare the monitoring settings
+  ansible.builtin.template:
+    src: monitoring.env.j2
+    dest: /srv/monitoring/.env
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Route the monitoring hostnames through the proxy
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../monitoring/{{ item }}"
+    dest: "/srv/proxy/sites/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - status.caddy
+    - metrics.caddy
+  notify: Reload caddy
+
+- name: Start the monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: /srv/monitoring
+    profiles: "{{ ['agent'] if beszel_agent_key | length > 0 else [] }}"
+    state: present

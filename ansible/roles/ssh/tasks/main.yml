@@ -1,0 +1,14 @@
+---
+- name: Harden sshd
+  ansible.builtin.template:
+    src: 10-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload ssh
+
+# A broken file fails the play here, before the handler reloads it into the running daemon.
+- name: Check the complete sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false

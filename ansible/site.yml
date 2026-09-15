@@ -1,0 +1,13 @@
+---
+- name: Configure the VPS
+  hosts: vps
+  become: true
+  roles:
+    - base
+    - docker
+    - users
+    - ssh
+    - ufw
+    - updates
+    - proxy
+    - monitoring

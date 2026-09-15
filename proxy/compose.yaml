@@ -1,0 +1,30 @@
+# Shared edge proxy: owns ports 80 and 443 and the certificates for every application on the host.
+# Each application drops a site snippet into ./sites/ and joins the external `edge` network.
+name: proxy
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine
+    # Every snippet in ./sites reads its hostname from here: one line per site.
+    env_file: .env
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      # proxy_caddy-data holds every issued certificate. Renaming this project creates an empty
+      # one and re-requests them all against Let's Encrypt's rate limits.
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+    restart: unless-stopped
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy-data:
+  caddy-config:

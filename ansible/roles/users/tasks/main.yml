@@ -1,0 +1,39 @@
+---
+- name: Create the user GitHub Actions deploys as
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    comment: GitHub Actions deploy
+    shell: /bin/bash
+    groups: docker
+    append: true
+
+- name: Authorize the administrator key
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_authorized_key }}"
+    state: present
+
+- name: Authorize only the deploy key for the deploy user
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ deploy_authorized_key }}"
+    exclusive: true
+
+# Placed by hand and never written by Ansible: a fresh server has none until the application is set up.
+- name: Inspect the application secrets files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ app_env_files }}"
+  register: users_app_env
+
+- name: Require application secrets files to be private to the deploy user
+  ansible.builtin.assert:
+    that:
+      - item.stat.mode == '0600'
+      - item.stat.pw_name == deploy_user
+    fail_msg: "{{ item.item }} must be mode 0600 and owned by {{ deploy_user }}"
+    quiet: true
+  loop: "{{ users_app_env.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists

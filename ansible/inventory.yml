@@ -1,0 +1,6 @@
+---
+all:
+  hosts:
+    vps:
+      ansible_host: 51.255.42.146
+      ansible_user: ubuntu

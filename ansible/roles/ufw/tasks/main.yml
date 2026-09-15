@@ -1,0 +1,26 @@
+---
+# Docker publishes ports through its own iptables rules, ahead of ufw: these rules do not protect
+# a published container port. The OVH network firewall does.
+- name: Allow SSH, HTTP and HTTPS before denying anything
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "22"
+    - "80"
+    - "443"
+
+- name: Deny incoming traffic by default
+  community.general.ufw:
+    direction: incoming
+    default: deny
+
+- name: Allow outgoing traffic by default
+  community.general.ufw:
+    direction: outgoing
+    default: allow
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

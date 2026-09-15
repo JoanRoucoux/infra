@@ -1,0 +1,62 @@
+name: monitoring
+
+services:
+  # Read-only Docker API, so neither Kuma nor the Beszel agent mounts the socket. It still exposes
+  # container environments, secrets included: it stays on loopback and on the internal network.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    environment:
+      CONTAINERS: 1
+      INFO: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - '127.0.0.1:2375:2375'
+    networks:
+      - internal
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.4
+    volumes:
+      - uptime-kuma-data:/app/data
+    networks:
+      - internal
+      - edge
+    restart: unless-stopped
+
+  beszel:
+    image: henrygd/beszel:0.19.0
+    environment:
+      APP_URL: https://${METRICS_DOMAIN:?METRICS_DOMAIN must be set}
+    volumes:
+      - beszel-data:/beszel_data
+      - beszel-socket:/beszel_socket
+    networks:
+      - edge
+    restart: unless-stopped
+
+  # Its KEY only exists once the hub has shown it: the monitoring role enables this profile then.
+  beszel-agent:
+    profiles: ['agent']
+    image: henrygd/beszel-agent:0.19.0
+    network_mode: host
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      DOCKER_HOST: tcp://127.0.0.1:2375
+      KEY: ${BESZEL_AGENT_KEY}
+    volumes:
+      - beszel-agent-data:/var/lib/beszel-agent
+      - beszel-socket:/beszel_socket
+    restart: unless-stopped
+
+networks:
+  internal:
+  edge:
+    external: true
+
+volumes:
+  uptime-kuma-data:
+  beszel-data:
+  beszel-socket:
+  beszel-agent-data:

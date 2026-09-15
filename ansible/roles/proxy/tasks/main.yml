@@ -1,0 +1,57 @@
+---
+- name: Require the ACME contact address
+  ansible.builtin.assert:
+    that: acme_email | length > 0
+    fail_msg: Export ACME_EMAIL before running the playbook.
+    quiet: true
+
+- name: Create the proxy directory
+  ansible.builtin.file:
+    path: /srv/proxy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Application deploys copy their own snippet here as the deploy user.
+- name: Create the site snippets directory
+  ansible.builtin.file:
+    path: /srv/proxy/sites
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+- name: Install the proxy compose project
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../proxy/compose.yaml"
+    dest: /srv/proxy/compose.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the Caddyfile
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../proxy/Caddyfile"
+    dest: /srv/proxy/Caddyfile
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload caddy
+
+- name: Declare the hostnames the site snippets read
+  ansible.builtin.template:
+    src: proxy.env.j2
+    dest: /srv/proxy/.env
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create the network the proxy shares with applications
+  community.docker.docker_network:
+    name: edge
+
+- name: Start the proxy
+  community.docker.docker_compose_v2:
+    project_src: /srv/proxy
+    state: present

@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: docker-compose
+    directories:
+      - /proxy
+      - /monitoring
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns:
+          - '*'
+
+  # The toolbox: its base image and its Python packages. Collections and TERRAFORM_VERSION have
+  # no ecosystem Dependabot reads, and are bumped by hand.
+  - package-ecosystem: docker
+    directory: /tools
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: /tools
+    schedule:
+      interval: weekly
+    groups:
+      toolbox:
+        patterns:
+          - '*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - '*'

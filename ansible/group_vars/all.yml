@@ -1,0 +1,28 @@
+---
+admin_user: ubuntu
+admin_authorized_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPzcnU62vis0uRFj8CqIe/zXnRemiWtmeEh5jbxvF4ce joan.roucoux@gmail.com
+
+deploy_user: deploy
+deploy_authorized_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEgVvOpKLzdBRtAELIJ713x5dd3OqvVk/MOHrf/2fAzv cairn-deploy (github actions)
+
+app_env_files:
+  - /srv/cairn/.env
+
+# The batch schedule in cairn's deploy/cairn.cron is written in this timezone.
+timezone: Europe/Paris
+swap_size: 1G
+
+docker_daemon:
+  log-driver: json-file
+  log-opts:
+    max-size: 10m
+    max-file: "3"
+  live-restore: true
+
+acme_email: "{{ lookup('ansible.builtin.env', 'ACME_EMAIL') }}"
+cairn_domain: cairn.joanroucoux.fr
+status_domain: status.joanroucoux.fr
+metrics_domain: metrics.joanroucoux.fr
+
+# The Beszel hub's public key, shown when adding the system in its UI. Empty keeps the agent off.
+beszel_agent_key: ""

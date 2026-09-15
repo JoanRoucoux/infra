@@ -1,0 +1,7 @@
+# `email` with an empty value is a parse error, not a no-op: the proxy role refuses to run
+# without ACME_EMAIL.
+{
+	email {$ACME_EMAIL}
+}
+
+import /etc/caddy/sites/*.caddy
