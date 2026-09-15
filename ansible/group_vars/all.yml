@@ -25,4 +25,4 @@ status_domain: status.joanroucoux.fr
 metrics_domain: metrics.joanroucoux.fr
 
 # The Beszel hub's public key, shown when adding the system in its UI. Empty keeps the agent off.
-beszel_agent_key: ""
+beszel_agent_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKVtmU/0V7Yj0zisNtPNbpd4hFL2NDiMwB0xF8OxKMjl
