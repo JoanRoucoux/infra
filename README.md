@@ -9,6 +9,85 @@ Terraform, Ansible, the shared proxy and the monitoring for the OVH VPS at `51.2
     tools/         The toolbox image: Terraform, Ansible, ansible-lint, pinned collections
     scripts/       toolbox.sh, tf.sh, play.sh, check.sh
 
+## How it fits together
+
+The host runs several applications, so nothing here belongs to any one of them. Three repositories
+share it:
+
+    infra        this one: the machine, the DNS, the firewall, the shared proxy, the monitoring
+    cairn        the Java backend, the database schema, the batch, its own routing snippet
+    cairn-web    the Angular frontend and its nginx image
+
+**Terraform declares what exists at OVH** and never reaches inside the machine: the DNS records for
+`cairn`, `status` and `metrics`, a CAA record per subdomain restricting issuance to Let's Encrypt,
+and the OVH network firewall that sits in front of the host. That firewall is stateless and IPv4
+only, which is why it carries return rules for UDP source ports 53 and 123: without them the server
+resolves no name and drifts off the clock. The VPS itself is read through a `data` source, the
+provider having rejected its model.
+
+**Ansible declares how the machine is configured.** Its roles run in order: `base` (swap, timezone,
+journald cap), `docker` (engine and log rotation), `users` (the `deploy` account the CI logs in as),
+`ssh` (key only, no root), `ufw`, `updates`, then `proxy` and `monitoring`, which lay down the two
+compose projects this repository owns.
+
+### What runs on the host
+
+Three independent compose projects, each restartable without touching the others:
+
+    proxy/        caddy                                    owns 80, 443 and the certificates
+    monitoring/   uptime-kuma, beszel, beszel-agent, socket-proxy
+    cairn/        postgres, api, web, schema, batch        deployed from the cairn repositories
+
+They meet on an external Docker network called `edge`. Caddy is on it, and so are Cairn's `api` and
+`web`. **`postgres` is not**: it stays on its project's default network, out of reach of every other
+application sharing the proxy.
+
+### The path of a request
+
+    browser
+      |
+      v 443
+    Caddy (proxy project) --- reads /srv/proxy/sites/*.caddy
+      |
+      +-- cairn.joanroucoux.fr
+      |     /api/*        -> api:8080   the /api prefix is stripped on the way
+      |     /webauthn/*   -> api:8080   Spring Security serves these pages itself
+      |     everything    -> web:80     nginx, static files
+      |
+      +-- status.joanroucoux.fr  -> uptime-kuma:3001
+      +-- metrics.joanroucoux.fr -> beszel:8090
+
+Routing is by path rather than by subdomain so the frontend and the API share **one origin**, which
+the session cookie requires (`secure`, `SameSite=Strict`). No backend hostname is therefore baked
+into the frontend image. Caddy resolves `api` and `web` per request rather than at startup, so the
+proxy comes up and recovers whether or not any application behind it is running.
+
+### The path of a deploy
+
+Neither application repository touches this one. They ship files into `/srv/<app>/` and drop a
+routing snippet into `/srv/proxy/sites/`, then reload Caddy rather than restarting it.
+
+    short branch -> PR -> ci + pr-title green -> squash merge on main
+                                                    |
+                                       GitHub Actions: deploy.yml
+                                                    |
+      tag --> ci --> images (GHCR, tagged sha-xxxxxxx) --> deploy --> release
+                                                             |           |
+                                                       ssh deploy@   CalVer tag,
+                                                             |       notes by git-cliff
+                                                  /srv/cairn/deploy.sh
+
+`cairn-web` runs the mirror workflow for its own service alone. Both scripts take the same
+`/srv/cairn/.deploy.lock`, because both edit `/srv/cairn/.env` and GitHub concurrency does not span
+repositories. A release records a deployment that worked, so the Releases page of each application
+is the history of what production has run.
+
+### Three layers of watching
+
+Uptime Kuma answers "is it up", from inside the host. Beszel answers "is it healthy", on CPU,
+memory and disk. UptimeRobot answers both from outside, and is the only layer still standing if the
+host goes down with Kuma on it. The next section details what each one monitors.
+
 ## Workstation
 
 Docker is the only requirement. The first `scripts/*.sh` call builds the toolbox image, later ones
