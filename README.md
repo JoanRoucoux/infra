@@ -36,7 +36,8 @@ Three independent compose projects, each restartable without touching the others
 
     proxy/        caddy                                    owns 80, 443 and the certificates
     monitoring/   uptime-kuma, beszel, beszel-agent, socket-proxy
-    cairn/        postgres, api, web, schema, batch        deployed from the cairn repositories
+    cairn/        postgres, api, web, schema, batch,       deployed from the cairn repositories
+                  kafka, worker
 
 They meet on an external Docker network called `edge`. Caddy is on it, and so are Cairn's `api` and
 `web`. **`postgres` is not**: it stays on its project's default network, out of reach of every other
@@ -114,18 +115,20 @@ Kuma's monitors live in its SQLite volume. To recreate them:
 | --- | --- | --- | --- |
 | cairn api | HTTP(s), 200, certificate expiry | `https://cairn.joanroucoux.fr/api/actuator/health` | 60 s |
 | cairn web | HTTP(s), 200 | `https://cairn.joanroucoux.fr/` | 60 s |
-| container cairn-api-1, cairn-web-1, cairn-postgres-1, proxy-caddy-1 | Docker Container, host `tcp://socket-proxy:2375` | container name | 60 s |
+| container cairn-api-1, cairn-web-1, cairn-postgres-1, cairn-kafka-1, cairn-worker-1, proxy-caddy-1 | Docker Container, host `tcp://socket-proxy:2375` | container name | 60 s |
 | batch equity | Push | URL in `/srv/cairn/.env` as `KUMA_PUSH_EQUITY` | 73 h |
 | batch etf | Push | `KUMA_PUSH_ETF` | 73 h |
 | batch fund | Push | `KUMA_PUSH_FUND` | 73 h |
-| batch crypto | Push | `KUMA_PUSH_CRYPTO` | 4 h 30 |
+| batch snapshot | Push | `KUMA_PUSH_SNAPSHOT` | 25 h |
+| cairn intraday | Push | `KUMA_PUSH_INTRADAY`, pinged by the worker every 15 minutes | 20 min |
 
 A container with a healthcheck restarts through `starting`, which Kuma records as Pending, and Kuma
 notifies neither DOWN to Pending nor Pending to UP: container monitors send their DOWN email but
 no UP email. The HTTP monitors report the recovery.
 
 A push monitor only takes a fixed interval: equities and ETFs run on weekdays and funds from
-Tuesday to Saturday, so all three tolerate a weekend gap of 72 hours.
+Tuesday to Saturday, so all three tolerate a weekend gap of 72 hours. The snapshot runs every
+night and the worker refreshes crypto around the clock, so neither has a weekend gap.
 
 Beszel: system `vps` at `/beszel_socket/beszel.sock`, its public key in
 `ansible/group_vars/all.yml`. Alerts: CPU above 80 % for 10 minutes, memory above 90 %, disk
@@ -139,6 +142,10 @@ server going down, Kuma included.
 Memory measured on 2026-09-15 while the equity batch ran: 1390 MiB used of 3814, 2424 MiB
 available, swap unused. Largest containers: cairn-api 290 MiB, cairn-batch 214 MiB, uptime-kuma
 211 MiB, postgres 57 MiB, beszel 42 MiB, caddy 27 MiB.
+
+Measured again on 2026-09-24 with Kafka and Cairn's worker running, just after an intraday
+refresh: 1838 MiB used of 3814, 1976 MiB available. cairn-kafka (the broker) 448 MiB of its 768
+MiB limit, cairn-worker 254 MiB of 384, cairn-api 320 MiB.
 
 First-run pages are public: create the Kuma and Beszel admin accounts right after the stack
 starts, before anyone else reaches them.
