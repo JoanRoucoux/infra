@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   uptime-kuma:
-    image: louislam/uptime-kuma:2.5.4
+    image: louislam/uptime-kuma:2.5.5
     volumes:
       - uptime-kuma-data:/app/data
     networks:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
 
   beszel:
-    image: henrygd/beszel:0.19.0
+    image: henrygd/beszel:0.20.0
     environment:
       APP_URL: https://${METRICS_DOMAIN:?METRICS_DOMAIN must be set}
     volumes:
@@ -39,7 +39,7 @@ services:
   # Its KEY only exists once the hub has shown it: the monitoring role enables this profile then.
   beszel-agent:
     profiles: ['agent']
-    image: henrygd/beszel-agent:0.19.0
+    image: henrygd/beszel-agent:0.20.0
     network_mode: host
     environment:
       LISTEN: /beszel_socket/beszel.sock
