@@ -196,7 +196,7 @@ Kuma's monitors live in its SQLite volume. To recreate them:
 | batch etf | Push | `KUMA_PUSH_ETF` | 73 h |
 | batch fund | Push | `KUMA_PUSH_FUND` | 73 h |
 | batch snapshot | Push | `KUMA_PUSH_SNAPSHOT` | 25 h |
-| cairn intraday | Push | `KUMA_PUSH_INTRADAY`, pinged by the worker every 15 minutes | 20 min |
+| cairn intraday | Push | `KUMA_PUSH_INTRADAY`, pinged by the worker every 15 minutes | 35 min |
 | cairn summary | Push | `KUMA_PUSH_SUMMARY`, pinged by the worker after the daily Telegram summary | 73 h |
 
 A container with a healthcheck restarts through `starting`, which Kuma records as Pending, and Kuma
@@ -205,7 +205,8 @@ no UP email. The HTTP monitors report the recovery.
 
 A push monitor only takes a fixed interval: equities, ETFs and the summary run on weekdays and funds
 from Tuesday to Saturday, so all four tolerate a weekend gap of 72 hours. The snapshot runs every
-night and the worker refreshes crypto around the clock, so neither has a weekend gap.
+night and the worker refreshes crypto around the clock, so neither has a weekend gap. Intraday
+tolerates one missed slot: a deploy restarting the worker across a quarter hour skips one ping.
 
 Beszel: system `vps` at `/beszel_socket/beszel.sock`, its public key in
 `ansible/group_vars/all.yml`. Alerts: CPU above 80 % for 10 minutes, memory above 90 %, disk
