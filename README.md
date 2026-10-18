@@ -5,11 +5,10 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-The infrastructure behind [cairn.joanroucoux.fr](https://cairn.joanroucoux.fr) and its
-[status page](https://status.joanroucoux.fr), as code: Terraform for what exists at OVH, Ansible for
-how the machine is configured, a shared Caddy proxy and the monitoring. Today it is one OVH VPS at
-`51.255.42.146`, running [Cairn](https://github.com/JoanRoucoux/cairn) and the monitoring. A second
-host would be one more inventory entry and its own Terraform resources, not a new repository.
+My self-hosted infrastructure, as code: Terraform for what exists at the provider, Ansible for how
+each host is configured, a shared Caddy proxy and the monitoring. Applications ship their own
+containers and routing snippet; this repository owns the hosts, the DNS, the proxy and the watching.
+The diagram shows what runs today.
 
 ```mermaid
 flowchart LR
