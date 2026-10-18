@@ -212,14 +212,6 @@ UptimeRobot: `https://cairn.joanroucoux.fr/api/actuator/health` and
 `https://status.joanroucoux.fr/`, every 5 minutes. The second one is what notices the whole
 server going down, Kuma included.
 
-Memory measured on 2026-09-15 while the equity batch ran: 1390 MiB used of 3814, 2424 MiB
-available, swap unused. Largest containers: cairn-api 290 MiB, cairn-batch 214 MiB, uptime-kuma
-211 MiB, postgres 57 MiB, beszel 42 MiB, caddy 27 MiB.
-
-Measured again on 2026-09-24 with Kafka and Cairn's worker running, just after an intraday
-refresh: 1838 MiB used of 3814, 1976 MiB available. cairn-kafka (the broker) 448 MiB of its 768
-MiB limit, cairn-worker 254 MiB of 384, cairn-api 320 MiB.
-
 First-run pages are public: create the Kuma and Beszel admin accounts right after the stack
 starts, before anyone else reaches them.
 
