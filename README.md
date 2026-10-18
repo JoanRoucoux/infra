@@ -5,10 +5,11 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-The infrastructure behind joanroucoux.fr, as code: Terraform for what exists at OVH, Ansible for how
-the machine is configured, a shared Caddy proxy and the monitoring. Today it runs one OVH VPS at
-`51.255.42.146`, which hosts [Cairn](https://github.com/JoanRoucoux/cairn). A second host would be
-one more inventory entry and its own Terraform resources, not a new repository.
+The infrastructure behind [cairn.joanroucoux.fr](https://cairn.joanroucoux.fr) and its
+[status page](https://status.joanroucoux.fr), as code: Terraform for what exists at OVH, Ansible for
+how the machine is configured, a shared Caddy proxy and the monitoring. Today it is one OVH VPS at
+`51.255.42.146`, running [Cairn](https://github.com/JoanRoucoux/cairn) and the monitoring. A second
+host would be one more inventory entry and its own Terraform resources, not a new repository.
 
 ```mermaid
 flowchart LR
@@ -34,7 +35,7 @@ flowchart LR
             postgres[(PostgreSQL)]
         end
     end
-    caddy -->|"cairn: /api/*, /webauthn/*"| api
+    caddy -->|"cairn: /api/*, /webauthn/*, /login/webauthn, /logout*"| api
     caddy -->|"cairn: everything else"| web
     caddy -->|status| kuma
     caddy -->|metrics| beszel
@@ -43,6 +44,7 @@ flowchart LR
     worker --> kafka
     worker --> postgres
     batch --> postgres
+    batch --> kafka
     kuma --> socket
     beszel --> agent
 ```
@@ -75,8 +77,8 @@ versions. Dependabot keeps the images, the Python tools and the GitHub Actions u
 
 ## Layout
 
-    terraform/     OVH resources: VPS (imported), DNS records, network firewall
-    ansible/       Server configuration: users, sshd, ufw, Docker, updates, proxy, monitoring
+    terraform/     OVH resources: VPS (read only), DNS and CAA records, network firewall
+    ansible/       Server configuration: base, Docker, users, sshd, ufw, updates, proxy, monitoring
     proxy/         Shared Caddy: ports 80/443, one snippet per site in /srv/proxy/sites/
     monitoring/    Uptime Kuma, Beszel hub and agent, read-only Docker socket proxy
     tools/         The toolbox image: Terraform, Ansible, ansible-lint, pinned collections
@@ -124,9 +126,11 @@ application sharing the proxy.
     Caddy (proxy project) --- reads /srv/proxy/sites/*.caddy
       |
       +-- cairn.joanroucoux.fr
-      |     /api/*        -> api:8080   the /api prefix is stripped on the way
-      |     /webauthn/*   -> api:8080   Spring Security serves these pages itself
-      |     everything    -> web:80     nginx, static files
+      |     /api/*            -> api:8080   the /api prefix is stripped on the way
+      |     /webauthn/*       -> api:8080   Spring Security serves these three itself
+      |     /login/webauthn   -> api:8080
+      |     /logout*          -> api:8080
+      |     everything else   -> web:80     nginx, static files
       |
       +-- status.joanroucoux.fr  -> uptime-kuma:3001
       +-- metrics.joanroucoux.fr -> beszel:8090
@@ -194,13 +198,14 @@ Kuma's monitors live in its SQLite volume. To recreate them:
 | batch fund | Push | `KUMA_PUSH_FUND` | 73 h |
 | batch snapshot | Push | `KUMA_PUSH_SNAPSHOT` | 25 h |
 | cairn intraday | Push | `KUMA_PUSH_INTRADAY`, pinged by the worker every 15 minutes | 20 min |
+| cairn summary | Push | `KUMA_PUSH_SUMMARY`, pinged by the worker after the daily Telegram summary | 73 h |
 
 A container with a healthcheck restarts through `starting`, which Kuma records as Pending, and Kuma
 notifies neither DOWN to Pending nor Pending to UP: container monitors send their DOWN email but
 no UP email. The HTTP monitors report the recovery.
 
-A push monitor only takes a fixed interval: equities and ETFs run on weekdays and funds from
-Tuesday to Saturday, so all three tolerate a weekend gap of 72 hours. The snapshot runs every
+A push monitor only takes a fixed interval: equities, ETFs and the summary run on weekdays and funds
+from Tuesday to Saturday, so all four tolerate a weekend gap of 72 hours. The snapshot runs every
 night and the worker refreshes crypto around the clock, so neither has a weekend gap.
 
 Beszel: system `vps` at `/beszel_socket/beszel.sock`, its public key in
@@ -212,20 +217,13 @@ UptimeRobot: `https://cairn.joanroucoux.fr/api/actuator/health` and
 `https://status.joanroucoux.fr/`, every 5 minutes. The second one is what notices the whole
 server going down, Kuma included.
 
-Memory measured on 2026-09-15 while the equity batch ran: 1390 MiB used of 3814, 2424 MiB
-available, swap unused. Largest containers: cairn-api 290 MiB, cairn-batch 214 MiB, uptime-kuma
-211 MiB, postgres 57 MiB, beszel 42 MiB, caddy 27 MiB.
-
-Measured again on 2026-09-24 with Kafka and Cairn's worker running, just after an intraday
-refresh: 1838 MiB used of 3814, 1976 MiB available. cairn-kafka (the broker) 448 MiB of its 768
-MiB limit, cairn-worker 254 MiB of 384, cairn-api 320 MiB.
-
 First-run pages are public: create the Kuma and Beszel admin accounts right after the stack
 starts, before anyone else reaches them.
 
 ## Rebuilding the server from scratch
 
-The data is not critical: the portfolio re-imports from its CSV and passkeys re-register.
+The database has no off-site backup: the portfolio comes back from a CSV export taken in Cairn, and
+passkeys re-register.
 
 1. OVH manager: reinstall the VPS with Ubuntu 26.04 LTS and the `ubuntu` user's SSH key.
 2. Record the new host key (`ssh-keyscan -t ed25519 51.255.42.146`) in `DEPLOY_KNOWN_HOSTS` of
