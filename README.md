@@ -1,6 +1,79 @@
 # infra
 
-Terraform, Ansible, the shared proxy and the monitoring for the OVH VPS at `51.255.42.146`.
+<p>
+  <a href="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+</p>
+
+The infrastructure behind joanroucoux.fr, as code: Terraform for what exists at OVH, Ansible for how
+the machine is configured, a shared Caddy proxy and the monitoring. Today it runs one OVH VPS at
+`51.255.42.146`, which hosts [Cairn](https://github.com/JoanRoucoux/cairn). A second host would be
+one more inventory entry and its own Terraform resources, not a new repository.
+
+```mermaid
+flowchart LR
+    browser([Browser]) -->|443| caddy
+    robot([UptimeRobot]) -.->|every 5 min| caddy
+    ovh[OVH: DNS, CAA, network firewall] -.- host
+    subgraph host [OVH VPS, Ubuntu 26.04]
+        subgraph proxy [proxy]
+            caddy[Caddy]
+        end
+        subgraph monitoring [monitoring]
+            kuma[Uptime Kuma]
+            beszel[Beszel hub]
+            agent[Beszel agent]
+            socket[Docker socket proxy]
+        end
+        subgraph cairn [cairn]
+            web[web: nginx]
+            api[api: Spring Boot]
+            worker[worker]
+            batch[batch]
+            kafka[(Kafka)]
+            postgres[(PostgreSQL)]
+        end
+    end
+    caddy -->|"cairn: /api/*, /webauthn/*"| api
+    caddy -->|"cairn: everything else"| web
+    caddy -->|status| kuma
+    caddy -->|metrics| beszel
+    api --> postgres
+    api --> kafka
+    worker --> kafka
+    worker --> postgres
+    batch --> postgres
+    kuma --> socket
+    beszel --> agent
+```
+
+## Tech stack
+
+| Tool | Version | Role |
+| ---- | ------- | ---- |
+| Terraform | 1.16.2 | OVH resources, state in Terraform Cloud |
+| OVH provider | 2.19.0 | DNS records, CAA records, network firewall |
+| Ansible | core 2.21.5 | Server configuration, eight roles |
+| ansible-lint | 26.9.0 | Playbook and role checks |
+| Caddy | 2.11.4 | Shared reverse proxy, automatic Let's Encrypt certificates |
+| Uptime Kuma | 2.5.5 | Availability: HTTP, container and push monitors |
+| Beszel | 0.20.0 | Host metrics and resource alerts |
+| Docker socket proxy | 0.5.0 | Read-only Docker API for the monitoring |
+| Ubuntu | 26.04 LTS | Host operating system |
+
+Every tool runs from one pinned toolbox image (`tools/`), so the workstation and the CI use the same
+versions. Dependabot keeps the images, the Python tools and the GitHub Actions up to date.
+
+## Quality
+
+`scripts/check.sh` runs locally and in the CI on every push and pull request:
+
+- Terraform: `fmt -check`, then `validate` without a backend
+- Ansible: `--syntax-check` on the playbook, then `ansible-lint`
+- Proxy: the compose file and the Caddyfile with every site snippet, validated by Caddy itself
+  against a throwaway environment
+
+## Layout
 
     terraform/     OVH resources: VPS (imported), DNS records, network firewall
     ansible/       Server configuration: users, sshd, ufw, Docker, updates, proxy, monitoring
@@ -161,3 +234,7 @@ The data is not critical: the portfolio re-imports from its CSV and passkeys re-
 4. Recreate `/srv/cairn/.env` (mode 600, owner `deploy`), redeploy `cairn` then `cairn-web` by
    running their Deploy workflows with the current `main` SHA.
 5. Recreate the Kuma and Beszel accounts and monitors from the Monitoring section.
+
+## License
+
+[MIT](LICENSE)
