@@ -29,6 +29,10 @@ from `tools/Dockerfile`, the same image CI uses.
 
 ## Gotchas
 
+- **The socket proxy mounts `/var/run`, not `docker.sock`.** An unattended Docker upgrade restarts
+  dockerd, which recreates the socket, while `live-restore` keeps the proxy running. A bind mount of
+  the socket file keeps the old inode, so every request got a 503 and every Kuma container monitor
+  and Beszel's container stats stayed down from 2026-10-10 until the proxy was recreated.
 - **Docker bypasses ufw.** A port published by a container ignores ufw's rules. The OVH network
   firewall, upstream of the machine, is the real barrier; only Caddy publishes public ports.
 - **The OVH network firewall is stateless and IPv4 only.** Its rules must permit UDP replies from
