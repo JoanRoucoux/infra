@@ -4,7 +4,7 @@ name: proxy
 
 services:
   caddy:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.7-alpine
     # Every snippet in ./sites reads its hostname from here: one line per site.
     env_file: .env
     ports:
