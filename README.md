@@ -1,4 +1,5 @@
-# infra
+<img src=".github/assets/banner.png" alt="Infra: self-hosted infrastructure as code" />
+<br>
 
 <p>
   <a href="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml/badge.svg"></a>
