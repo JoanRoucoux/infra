@@ -1,15 +1,17 @@
 <img src=".github/assets/banner.png" alt="Infra: self-hosted infrastructure as code" />
-<br>
 
-<p>
-  <a href="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-</p>
+<div align="center">
+
+[![CI](https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml/badge.svg)](https://github.com/JoanRoucoux/infra/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+</div>
 
 My self-hosted infrastructure, as code: Terraform for what exists at the provider, Ansible for how
 each host is configured, a shared Caddy proxy and the monitoring. Applications ship their own
 containers and routing snippet; this repository owns the hosts, the DNS, the proxy and the watching.
-The diagram shows what runs today.
+
+## How it fits together
 
 ```mermaid
 flowchart LR
@@ -49,48 +51,11 @@ flowchart LR
     beszel --> agent
 ```
 
-## Tech stack
-
-| Tool | Version | Role |
-| ---- | ------- | ---- |
-| Terraform | 1.16.2 | OVH resources, state in Terraform Cloud |
-| OVH provider | 2.19.0 | DNS records, CAA records, network firewall |
-| Ansible | core 2.21.5 | Server configuration, eight roles |
-| ansible-lint | 26.9.0 | Playbook and role checks |
-| Caddy | 2.11.4 | Shared reverse proxy, automatic Let's Encrypt certificates |
-| Uptime Kuma | 2.5.5 | Availability: HTTP, container and push monitors |
-| Beszel | 0.20.0 | Host metrics and resource alerts |
-| Docker socket proxy | 0.5.0 | Read-only Docker API for the monitoring |
-| Ubuntu | 26.04 LTS | Host operating system |
-
-Every tool runs from one pinned toolbox image (`tools/`), so the workstation and the CI use the same
-versions. Dependabot keeps the images, the Python tools and the GitHub Actions up to date.
-
-## Quality
-
-`scripts/check.sh` runs locally and in the CI on every push and pull request:
-
-- Terraform: `fmt -check`, then `validate` without a backend
-- Ansible: `--syntax-check` on the playbook, then `ansible-lint`
-- Proxy: the compose file and the Caddyfile with every site snippet, validated by Caddy itself
-  against a throwaway environment
-
-## Layout
-
-    terraform/     OVH resources: VPS (read only), DNS and CAA records, network firewall
-    ansible/       Server configuration: base, Docker, users, sshd, ufw, updates, proxy, monitoring
-    proxy/         Shared Caddy: ports 80/443, one snippet per site in /srv/proxy/sites/
-    monitoring/    Uptime Kuma, Beszel hub and agent, read-only Docker socket proxy
-    tools/         The toolbox image: Terraform, Ansible, ansible-lint, pinned collections
-    scripts/       toolbox.sh, tf.sh, play.sh, check.sh
-
-## How it fits together
-
 The host runs several applications, so nothing here belongs to any one of them. Three repositories
 share it:
 
     infra        this one: the machine, the DNS, the firewall, the shared proxy, the monitoring
-    cairn        the Java backend, the database schema, the batch, its own routing snippet
+    cairn        the Java backend, the database schema, the batch, the Kafka worker, its routing snippet
     cairn-web    the Angular frontend and its nginx image
 
 **Terraform declares what exists at OVH** and never reaches inside the machine: the DNS records for
@@ -149,11 +114,12 @@ routing snippet into `/srv/proxy/sites/`, then reload Caddy rather than restarti
                                                     |
                                        GitHub Actions: deploy.yml
                                                     |
-      tag --> ci --> images (GHCR, tagged sha-xxxxxxx) --> deploy --> release
-                                                             |           |
-                                                       ssh deploy@   CalVer tag,
-                                                             |       notes by git-cliff
-                                                  /srv/cairn/deploy.sh
+      ci ---------------------------------------+
+                                                +--> deploy --> release
+      tag --> images (GHCR, tagged sha-xxxxxxx) +      |           |
+                                                 ssh deploy@   CalVer tag,
+                                                       |       notes by git-cliff
+                                            /srv/cairn/deploy.sh
 
 `cairn-web` runs the mirror workflow for its own service alone. Both scripts take the same
 `/srv/cairn/.deploy.lock`, because both edit `/srv/cairn/.env` and GitHub concurrency does not span
@@ -164,21 +130,16 @@ is the history of what production has run.
 
 Uptime Kuma answers "is it up", from inside the host. Beszel answers "is it healthy", on CPU,
 memory and disk. UptimeRobot answers both from outside, and is the only layer still standing if the
-host goes down with Kuma on it. The next section details what each one monitors.
+host goes down with Kuma on it. The Monitoring section below details what each one monitors.
 
-## Workstation
+## Project structure
 
-Docker is the only requirement. The first `scripts/*.sh` call builds the toolbox image, later ones
-reuse it. Credentials go in `~/.infra.env`, never in this repository:
-
-    OVH_ENDPOINT=ovh-eu
-    OVH_APPLICATION_KEY=...
-    OVH_APPLICATION_SECRET=...
-    OVH_CONSUMER_KEY=...
-    TF_TOKEN_app_terraform_io=...
-    ACME_EMAIL=...
-
-SSH keys are read from `~/.ssh`.
+    terraform/     OVH resources: VPS (read only), DNS and CAA records, network firewall
+    ansible/       Server configuration: base, Docker, users, sshd, ufw, updates, proxy, monitoring
+    proxy/         Shared Caddy: ports 80/443, one snippet per site in /srv/proxy/sites/
+    monitoring/    Uptime Kuma, Beszel hub and agent, read-only Docker socket proxy
+    tools/         The toolbox image: Terraform, Ansible, ansible-lint, pinned collections
+    scripts/       toolbox.sh, tf.sh, play.sh, check.sh
 
 ## Monitoring
 
@@ -233,6 +194,46 @@ passkeys re-register.
 4. Recreate `/srv/cairn/.env` (mode 600, owner `deploy`), redeploy `cairn` then `cairn-web` by
    running their Deploy workflows with the current `main` SHA.
 5. Recreate the Kuma and Beszel accounts and monitors from the Monitoring section.
+
+## Tech stack
+
+| Tool | Version | Role |
+| ---- | ------- | ---- |
+| Terraform | 1.16.2 | OVH resources, state in Terraform Cloud |
+| OVH provider | 2.19.0 | DNS records, CAA records, network firewall |
+| Ansible | core 2.21.5 | Server configuration, eight roles |
+| ansible-lint | 26.10.1 | Playbook and role checks |
+| Caddy | 2.11.7 | Shared reverse proxy, automatic Let's Encrypt certificates |
+| Uptime Kuma | 2.5.6 | Availability: HTTP, container and push monitors |
+| Beszel | 0.21.0 | Host metrics and resource alerts |
+| Docker socket proxy | 0.5.0 | Read-only Docker API for the monitoring |
+| Ubuntu | 26.04 LTS | Host operating system |
+
+Every tool runs from one pinned toolbox image (`tools/`), so the workstation and the CI use the same
+versions. Dependabot keeps the images, the Python tools and the GitHub Actions up to date.
+
+## Quality
+
+`scripts/check.sh` runs locally and in the CI on every push and pull request:
+
+- Terraform: `fmt -check`, then `validate` without a backend
+- Ansible: `--syntax-check` on the playbook, then `ansible-lint`
+- Proxy: the compose file and the Caddyfile with every site snippet, validated by Caddy itself
+  against a throwaway environment
+
+## Development
+
+Docker is the only requirement. The first `scripts/*.sh` call builds the toolbox image, later ones
+reuse it. Credentials go in `~/.infra.env`, never in this repository:
+
+    OVH_ENDPOINT=ovh-eu
+    OVH_APPLICATION_KEY=...
+    OVH_APPLICATION_SECRET=...
+    OVH_CONSUMER_KEY=...
+    TF_TOKEN_app_terraform_io=...
+    ACME_EMAIL=...
+
+SSH keys are read from `~/.ssh`.
 
 ## License
 
