@@ -199,14 +199,14 @@ passkeys re-register.
 
 | Tool | Version | Role |
 | ---- | ------- | ---- |
-| Terraform | 1.16.2 | OVH resources, state in Terraform Cloud |
-| OVH provider | 2.19.0 | DNS records, CAA records, network firewall |
-| Ansible | core 2.21.5 | Server configuration, eight roles |
-| ansible-lint | 26.10.1 | Playbook and role checks |
-| Caddy | 2.11.7 | Shared reverse proxy, automatic Let's Encrypt certificates |
-| Uptime Kuma | 2.5.6 | Availability: HTTP, container and push monitors |
-| Beszel | 0.21.0 | Host metrics and resource alerts |
-| Docker socket proxy | 0.5.0 | Read-only Docker API for the monitoring |
+| Terraform | 1.16 | OVH resources, state in Terraform Cloud |
+| OVH provider | 2 | DNS records, CAA records, network firewall |
+| Ansible | core 2.21 | Server configuration, eight roles |
+| ansible-lint | 26 | Playbook and role checks |
+| Caddy | 2 | Shared reverse proxy, automatic Let's Encrypt certificates |
+| Uptime Kuma | 2 | Availability: HTTP, container and push monitors |
+| Beszel | 0.21 | Host metrics and resource alerts |
+| Docker socket proxy | 0.5 | Read-only Docker API for the monitoring |
 | Ubuntu | 26.04 LTS | Host operating system |
 
 Every tool runs from one pinned toolbox image (`tools/`), so the workstation and the CI use the same

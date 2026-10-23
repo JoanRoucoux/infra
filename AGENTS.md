@@ -26,6 +26,7 @@ from `tools/Dockerfile`, the same image CI uses.
 - Comments flag traps only.
 - LF line endings everywhere: a CRLF breaks bash, cron and sshd files.
 - Secrets never in Git: application `.env` files are placed on the server by hand.
+- Dependabot runs monthly with a 7-day cooldown. Minor and patch updates merge themselves through `.github/workflows/dependabot-auto-merge.yml` once the required checks pass, and majors are reviewed by hand. The README names major versions only, since the exact ones live in the manifests Dependabot bumps.
 
 ## Gotchas
 
@@ -55,3 +56,4 @@ from `tools/Dockerfile`, the same image CI uses.
   and keeps Terraform's plugins in the `infra-tf-data` volume.
 - **Git Bash rewrites paths passed to Docker.** Every script exports `MSYS_NO_PATHCONV=1` and
   converts host paths with `cygpath -m`.
+- A merge made with `GITHUB_TOKEN` triggers no `push` workflow, which is why `dependabot-auto-merge.yml` uses the `DEPENDABOT_MERGE_TOKEN` secret when it exists.
