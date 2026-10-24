@@ -2,6 +2,10 @@
 # without ACME_EMAIL.
 {
 	email {$ACME_EMAIL}
+
+	log default {
+		exclude http.log.access
+	}
 }
 
 import /etc/caddy/sites/*.caddy

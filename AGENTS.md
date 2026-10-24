@@ -47,8 +47,14 @@ from `tools/Dockerfile`, the same image CI uses.
   through the container name `proxy-caddy-1`.
 - **Log rotation only applies to recreated containers.** Changing `daemon.json` leaves running
   containers on their old log settings until `docker compose up -d --force-recreate`.
-- **Never import a DNS record Terraform does not own.** The apex, `www` and the MX records serve
-  OVH web hosting and mail. CAA sits on each managed subdomain, not the apex, for the same reason.
+- **Never import a DNS record Terraform does not own.** The apex and `www` A records are now
+  Terraform's (imported from OVH web hosting's) and the apex carries the CAA; the MX records still
+  serve OVH mail and stay unmanaged, as do the apex NS, SPF and TXT records. `www` has no CAA of its
+  own: a lookup climbs to the apex.
+- **A `log` in any site snippet turns on access logging for the whole shared Caddy.** Unmapped hosts
+  and bare-IP scanners would then be logged with full IPs to stderr, so the global block of
+  `proxy/Caddyfile` has `log default { exclude http.log.access }`. A snippet's own `log` file is
+  unaffected. Never drop it.
 - **Uptime Kuma's monitors live in its SQLite volume**, not in this repository. README.md lists
   them so they can be recreated.
 - **A Windows bind mount shows every file as 777.** The toolbox names `ANSIBLE_CONFIG` explicitly
