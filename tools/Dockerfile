@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14.8-slim-trixie
+FROM python:3.15.0-slim-trixie
 
 ARG TERRAFORM_VERSION=1.16.2
 
