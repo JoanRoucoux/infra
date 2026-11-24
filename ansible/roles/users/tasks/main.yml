@@ -13,10 +13,10 @@
     key: "{{ admin_authorized_key }}"
     state: present
 
-- name: Authorize only the deploy key for the deploy user
+- name: Authorize only the deploy keys for the deploy user
   ansible.posix.authorized_key:
     user: "{{ deploy_user }}"
-    key: "{{ deploy_authorized_key }}"
+    key: "{{ deploy_authorized_keys | join('\n') }}"
     exclusive: true
 
 - name: Create the directory the site deploys into
