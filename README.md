@@ -154,6 +154,7 @@ Kuma's monitors live in its SQLite volume. To recreate them:
 | cairn api | HTTP(s), 200, certificate expiry | `https://cairn.joanroucoux.fr/api/actuator/health` | 60 s |
 | cairn web | HTTP(s), 200 | `https://cairn.joanroucoux.fr/` | 60 s |
 | container cairn-api-1, cairn-web-1, cairn-postgres-1, cairn-kafka-1, cairn-worker-1, proxy-caddy-1 | Docker Container, host `tcp://socket-proxy:2375` | container name | 60 s |
+| site | HTTP(s), 200, certificate expiry | `https://joanroucoux.fr/` | 60 s |
 | batch equity | Push | URL in `/srv/cairn/.env` as `KUMA_PUSH_EQUITY` | 73 h |
 | batch etf | Push | `KUMA_PUSH_ETF` | 73 h |
 | batch fund | Push | `KUMA_PUSH_FUND` | 73 h |

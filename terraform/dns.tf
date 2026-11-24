@@ -1,6 +1,6 @@
 locals {
-  # Only the names that point at the VPS. The apex, www and MX serve OVH web hosting and mail.
-  hosts = toset(["cairn", "status", "metrics"])
+  hosts     = toset(["", "www", "cairn", "status", "metrics"])
+  caa_hosts = setsubtract(local.hosts, ["www"])
 }
 
 resource "ovh_domain_zone_record" "host_a" {
@@ -13,9 +13,8 @@ resource "ovh_domain_zone_record" "host_a" {
   target    = var.vps_ipv4
 }
 
-# On each subdomain rather than the apex, where it would also bind OVH web hosting's certificates.
 resource "ovh_domain_zone_record" "host_caa" {
-  for_each = local.hosts
+  for_each = local.caa_hosts
 
   zone      = var.zone
   subdomain = each.key
